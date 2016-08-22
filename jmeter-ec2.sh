@@ -157,7 +157,7 @@ function runsetup() {
 
 		# if subnet is specified
     if [ -n "$SUBNET_ID" ] ; then
-			vpcsettings="--subnet-id $SUBNET_ID --associate-public-ip-address \"true\""
+			vpcsettings="--subnet-id $SUBNET_ID --associate-public-ip-address"
 			spot_launch_specification="{
 				\"KeyName\": \"$AMAZON_KEYPAIR_NAME\",
 				\"ImageId\": \"$AMI_ID\",
@@ -173,7 +173,7 @@ function runsetup() {
       attempted_instanceids=(`aws ec2 run-instances \
                   --key-name "$AMAZON_KEYPAIR_NAME" \
                   --instance-type "$INSTANCE_TYPE" \
-                  --security-group-ids "$INSTANCE_SECURITYGROUP_IDS" \
+                  --security-group-ids ${INSTANCE_SECURITYGROUP_IDS} \
                   --count 1:$instance_count \
                   $vpcsettings \
                   --image-id $AMI_ID \
