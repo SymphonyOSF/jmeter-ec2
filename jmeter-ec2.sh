@@ -21,21 +21,41 @@
 # along with JMeter-ec2.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+echo "Extracting $jmeter . . . "
+unzip -o $WORKSPACE/jmeter
+rm $WORKSPACE/jmeter
+cd $WORKSPACE/${jmeter%*.zip}
+
+# Script Configuration
+AMI_ID="ami-c22c4fd5"
+INSTANCE_SECURITYGROUP_IDS="sg-8e2bc8e9"
+AMAZON_KEYPAIR_NAME="jmeter"
+USER="ubuntu"
+REGION="us-east-1"
+JMETER_VERSION="apache-jmeter-2.13"
+SUBNET_ID="subnet-d32187a4"
+REMOTE_PORT="22"
+RUNNINGTOTAL_INTERVAL="3"
+PEM_PATH="/var/lib/jenkins"
+PEM_FILE="jmeter.pem"
+REMOTE_HOME="/home/ubuntu"
+
+
 DATETIME=$(date "+%s")
 
 # First make sure we have the required params and if not print out an instructive message
 #if [ -z "$project" ] ; then
 if [ "$1" == "-h" ] ; then
-	echo 'usage: project="abc" percent=20 setup="TRUE" terminate="TRUE" count="3" ./jmeter-ec2.sh'
-	echo
-	echo "[project]         -	required, directory and jmx name"
-	echo "[count]           -	optional, default=1"
-	echo "[percent]         -	optional, default=100"
-	echo "[setup]           -	optional, default='TRUE'"
-	echo "[terminate]       -	optional, default='TRUE'"
+  echo 'usage: project="abc" percent=20 setup="TRUE" terminate="TRUE" count="3" ./jmeter-ec2.sh'
+  echo
+  echo "[project]         - required, directory and jmx name"
+  echo "[count]           - optional, default=1"
+  echo "[percent]         - optional, default=100"
+  echo "[setup]           - optional, default='TRUE'"
+  echo "[terminate]       - optional, default='TRUE'"
   echo "[price]           - optional"
-	echo
-	exit
+  echo
+  exit
 fi
 
 # default to 100 if percent is not specified
@@ -52,6 +72,7 @@ if [ -z "$count" ] ; then count=1 ; fi
 instance_count=$count
 
 LOCAL_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo LOCAL_HOME = "$LOCAL_HOME"
 
 # Execute the jmeter-ec2.properties file, establishing these constants.
 . $LOCAL_HOME/jmeter-ec2.properties
@@ -63,7 +84,7 @@ project_home=`pwd`
 
 # If exists then run a local version of the properties file to allow project customisations.
 if [ -f "$project_home/jmeter-ec2.properties" ] ; then
-	. $project_home/jmeter-ec2.properties
+  . $project_home/jmeter-ec2.properties
 fi
 
 cd $EC2_HOME
@@ -81,40 +102,40 @@ teststarted=0
 
 # do some basic checks to prevent problems later
 function check_prereqs() {
-	# If there is a custom jmeter.properties, check for:
-	# - jmeter.save.saveservice.output_format=csv
-	# - jmeter.save.saveservice.thread_counts=true
-	if [ -r $LOCAL_HOME/jmeter.properties ] ; then
+  # If there is a custom jmeter.properties, check for:
+  # - jmeter.save.saveservice.output_format=csv
+  # - jmeter.save.saveservice.thread_counts=true
+  if [ -r $LOCAL_HOME/jmeter.properties ] ; then
     has_csv_output=$(grep -c "^\s*jmeter.save.saveservice.output_format=csv"  $LOCAL_HOME/jmeter.properties)
     has_thread_counts=$(grep -c "^\s*jmeter.save.saveservice.thread_counts=true" $LOCAL_HOME/jmeter.properties)
-	  if [ $has_csv_output -eq "0" ] ; then
-		  echo "WARN: Please ensure the jmeter.properties file has 'jmeter.save.saveservice.output_format=csv'. Could not find it!"
-	  fi
-	  if [ $has_thread_counts -eq "0" ] ; then
-		  echo "WARN: Please ensure the jmeter.properties file has 'jmeter.save.saveservice.thread_counts=true'. Could not find it!"
-	  fi
-	else
-	  echo "WARN: Did not see a custom jmeter.properties file. Please ensure the remote hosts have the required settings 'jmeter.save.saveservice.output_format=csv' and 'jmeter.save.saveservice.thread_counts=true'"
-	fi
+    if [ $has_csv_output -eq "0" ] ; then
+      echo "WARN: Please ensure the jmeter.properties file has 'jmeter.save.saveservice.output_format=csv'. Could not find it!"
+    fi
+    if [ $has_thread_counts -eq "0" ] ; then
+      echo "WARN: Please ensure the jmeter.properties file has 'jmeter.save.saveservice.thread_counts=true'. Could not find it!"
+    fi
+  else
+    echo "WARN: Did not see a custom jmeter.properties file. Please ensure the remote hosts have the required settings 'jmeter.save.saveservice.output_format=csv' and 'jmeter.save.saveservice.thread_counts=true'"
+  fi
 
-	# Check that the test plan exists
-	if [ -f "$project_home/jmx/$project.jmx" ] ; then
+  # Check that the test plan exists
+  if [ -f "$project_home/jmx/$project.jmx" ] ; then
     # Check that the jmx plan has a Generate Summary Reults listener (testclass="Summariser")
     summariser_count=$(grep -c "<Summariser .*testclass=\"Summariser\"" $project_home/jmx/$project.jmx)
     if [ -z $summariser_count ] ; then summariser_count=0 ; fi ;
     if [ $summariser_count -eq "0" ] ; then
       echo "ERROR: Please ensure your JMeter test plan has a Generate Summary Results listener! It is needed for jmeter-ec2 to properly work!"
     fi
-	else
+  else
     echo "ERROR: Could not find test plan at the following location: $project_home/jmx/$project.jmx"
     exit
-	fi
+  fi
 
-	# Check that awscli is installed and accessible
-	if  ! type aws &>/dev/null  ; then
+  # Check that awscli is installed and accessible
+  if  ! type aws &>/dev/null  ; then
     echo "ERROR: awscli does not appear to be installed or accessible from command line (tried aws)."
     exit
-	fi
+  fi
 }
 
 function runsetup() {
@@ -148,28 +169,29 @@ function runsetup() {
     echo
 
     vpcsettings=""
-		spot_launch_specification="{
-			\"KeyName\": \"$AMAZON_KEYPAIR_NAME\",
-			\"ImageId\": \"$AMI_ID\",
-			\"InstanceType\": \"$INSTANCE_TYPE\" ,
-			\"SecurityGroupIds\": [\"$INSTANCE_SECURITYGROUP_IDS\"]
-		}"
+    spot_launch_specification="{
+      \"KeyName\": \"$AMAZON_KEYPAIR_NAME\",
+      \"ImageId\": \"$AMI_ID\",
+      \"InstanceType\": \"$INSTANCE_TYPE\" ,
+      \"SecurityGroupIds\": [\"$INSTANCE_SECURITYGROUP_IDS\"]
+    }"
 
-		# if subnet is specified
+    # if subnet is specified
     if [ -n "$SUBNET_ID" ] ; then
-			vpcsettings="--subnet-id $SUBNET_ID --associate-public-ip-address"
-			spot_launch_specification="{
-				\"KeyName\": \"$AMAZON_KEYPAIR_NAME\",
-				\"ImageId\": \"$AMI_ID\",
-				\"InstanceType\": \"$INSTANCE_TYPE\" ,
-				\"SecurityGroupIds\": [\"$INSTANCE_SECURITYGROUP_IDS\"],
-				\"SubnetId\": [\"$SUBNET_ID\"]
-			}"
-		fi
+      vpcsettings="--subnet-id $SUBNET_ID --associate-public-ip-address"
+      spot_launch_specification="{
+        \"KeyName\": \"$AMAZON_KEYPAIR_NAME\",
+        \"ImageId\": \"$AMI_ID\",
+        \"InstanceType\": \"$INSTANCE_TYPE\" ,
+        \"SecurityGroupIds\": [\"$INSTANCE_SECURITYGROUP_IDS\"],
+        \"SubnetId\": [\"$SUBNET_ID\"]
+      }"
+    fi
 
     # create the instance(s) and capture the instance id(s)
     if [ -z "$price" ] ; then
       echo -n "Requesting $instance_count instance(s)..."
+      echo "aws ec2 run-instances --key-name $AMAZON_KEYPAIR_NAME --instance-type $INSTANCE_TYPE --security-group-ids ${INSTANCE_SECURITYGROUP_IDS} --count 1:$instance_count $vpcsettings --image-id $AMI_ID --region $REGION --output text --query 'Instances[].InstanceId'"
       attempted_instanceids=(`aws ec2 run-instances \
                   --key-name "$AMAZON_KEYPAIR_NAME" \
                   --instance-type "$INSTANCE_TYPE" \
@@ -199,8 +221,8 @@ function runsetup() {
       echo "Waiting for Spot instance requests to fulfill (may take a few minutes)"
       while [ "$spot_request_fulfilled_count" -ne "$instance_count" ] && [ $status_check_count -lt $status_check_limit ]
       do
-				spot_request_statuses=(`aws ec2 describe-spot-instance-requests --spot-instance-request-ids ${spot_instance_request_id[@]} --region $REGION --output text --query 'SpotInstanceRequests[].[Status.Code]'`)
-				spot_request_fulfilled_count=$(echo ${spot_request_statuses[@]} | tr ' ' '\n' | grep -c fulfilled)
+        spot_request_statuses=(`aws ec2 describe-spot-instance-requests --spot-instance-request-ids ${spot_instance_request_id[@]} --region $REGION --output text --query 'SpotInstanceRequests[].[Status.Code]'`)
+        spot_request_fulfilled_count=$(echo ${spot_request_statuses[@]} | tr ' ' '\n' | grep -c fulfilled)
 
         # if all spot requests failed exit before status_check_limit is reached
         spot_request_errors=(canceled-before-fulfillment capacity-not-available capacity-oversubscribed price-too-low)
@@ -229,12 +251,12 @@ function runsetup() {
       done
 
       # create a filter for the ec2-describe-instance command, to get the instances associated with the spot requests
-			spot_id_filter_values=""
+      spot_id_filter_values=""
       for x in "${spot_instance_request_id[@]}" ; do
         spot_id_filter_values+="${x},"
       done
-			# append values to filter variable and trim last comma off end of string
-			spot_id_filter="Name=spot-instance-request-id,Values=${spot_id_filter_values::${#spot_id_filter_values}-1}"
+      # append values to filter variable and trim last comma off end of string
+      spot_id_filter="Name=spot-instance-request-id,Values=${spot_id_filter_values::${#spot_id_filter_values}-1}"
 
       echo "Will be using this Spot ID filter to find new instances: $spot_id_filter"
 
@@ -255,10 +277,10 @@ function runsetup() {
       done
 
       attempted_instanceids=(`aws ec2 describe-instances \
-				--filters $spot_id_filter \
-				--region $REGION \
-				--output text \
-				--query 'Reservations[].Instances[].InstanceId'`)
+        --filters $spot_id_filter \
+        --region $REGION \
+        --output text \
+        --query 'Reservations[].Instances[].InstanceId'`)
     fi
 
     # check to see if Amazon returned the desired number of instances as a limit is placed restricting this and we need to handle the case where
@@ -290,10 +312,10 @@ function runsetup() {
         progressBar $countof_instanceids $count_passed
         status_check_count=$(( $status_check_count + 1))
         count_passed=(`aws ec2 describe-instance-status --instance-ids ${attempted_instanceids[@]} \
-				 						 --region $REGION \
-										 --output json \
-										 --query 'InstanceStatuses[].InstanceStatus.Details[].Status' | grep -c passed`)
-				sleep 1
+                     --region $REGION \
+                     --output json \
+                     --query 'InstanceStatuses[].InstanceStatus.Details[].Status' | grep -c passed`)
+        sleep 1
     done
     progressBar $countof_instanceids $count_passed true
     echo
@@ -307,9 +329,9 @@ function runsetup() {
 
       # set hosts array
       hosts=(`aws ec2 describe-instances --instance-ids ${attempted_instanceids[@]} \
-						--region $REGION \
-						--output text \
-						--query 'Reservations[].Instances[].PublicIpAddress'`)
+            --region $REGION \
+            --output text \
+            --query 'Reservations[].Instances[].PublicIpAddress'`)
 
       # echo "all hosts ready"
     else # Amazon probably failed to start a host [*** NOTE this is fairly common ***] so show a msg - TO DO. Could try to replace it with a new one?
@@ -318,28 +340,28 @@ function runsetup() {
       healthy_instanceids=(`aws ec2 describe-instance-status --instance-id ${attempted_instanceids[@]} \
                           --filter Name=instance-status.reachability,Values=passed \
                           --filter Name=system-status.reachability,Values=passed \
-													--region $REGION \
-													--output text \
-													--query 'Reservations[].Instances[].InstanceId'`)
+                          --region $REGION \
+                          --output text \
+                          --query 'Reservations[].Instances[].InstanceId'`)
 
       hosts=(`aws ec2 describe-instances --instance-ids ${healthy_instanceids[@]} \
-						--region $REGION \
-						--output text \
-						--query 'Reservations[].Instances[].PublicIpAddress'`)
+            --region $REGION \
+            --output text \
+            --query 'Reservations[].Instances[].PublicIpAddress'`)
 
       if [ "${#healthy_instanceids[@]}" -eq 0 ] ; then
         countof_instanceids=0
         echo "no instances successfully initialised, exiting"
         if [ "$terminate" = "TRUE" ] ; then
-        	echo
+          echo
           echo
           # attempt to terminate any running instances - just to be sure
           echo "terminating instance(s)..."
-        	# We use attempted_instanceids here to make sure that there are no orphan instances left lying around
+          # We use attempted_instanceids here to make sure that there are no orphan instances left lying around
           aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
-						--region $REGION \
-						--output text \
-						--query 'TerminatingInstances[].InstanceId'
+            --region $REGION \
+            --output text \
+            --query 'TerminatingInstances[].InstanceId'
           echo
         fi
         exit
@@ -421,14 +443,14 @@ function runsetup() {
 
   # scp verify.sh
   if [ "$setup" = "TRUE" ] ; then
-  	echo "copying verify.sh to $instance_count server(s)..."
+    echo "copying verify.sh to $instance_count server(s)..."
 
     for host in ${hosts[@]} ; do
+      echo "scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT $LOCAL_HOME/verify.sh $USER@$host:$REMOTE_HOME"
       (scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                     -i "$PEM_PATH/$PEM_FILE" \
                     -P $REMOTE_PORT \
                     $LOCAL_HOME/verify.sh \
-                    $LOCAL_HOME/jmeter-ec2.properties \
                     $USER@$host:$REMOTE_HOME \
                     && echo "done" > $project_home/$DATETIME-$host-scpverify.out) &
     done
@@ -452,6 +474,7 @@ function runsetup() {
     # Install test software
     echo "running verify.sh on $instance_count server(s)..."
     for host in ${hosts[@]} ; do
+      echo "ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@$host -p $REMOTE_PORT $REMOTE_HOME/verify.sh $JMETER_VERSION 2>&1> $project_home/$DATETIME-$host-verify.out"
       (ssh -nq -o StrictHostKeyChecking=no \
             -i "$PEM_PATH/$PEM_FILE" $USER@$host -p $REMOTE_PORT \
             "$REMOTE_HOME/verify.sh $JMETER_VERSION 2>&1"\
@@ -553,60 +576,60 @@ function runsetup() {
     # round to integer
     new_threadcounts[$n]=$(echo "($float+0.5)/1" | bc)
     if [ "${new_threadcounts[$n]}" -eq "0" ] ; then
-    	echo " - Thread group ${threadgroup_names[$n]} has ${orig_threadcounts[$n]} threads, $percent percent of this is $float which rounds to 0, so we're going to set it to 1 instead."
-    	new_threadcounts[$n]=1
-    	sumofadjthreadgroups=$(echo "$sumofadjthreadgroups+1" | bc)
+      echo " - Thread group ${threadgroup_names[$n]} has ${orig_threadcounts[$n]} threads, $percent percent of this is $float which rounds to 0, so we're going to set it to 1 instead."
+      new_threadcounts[$n]=1
+      sumofadjthreadgroups=$(echo "$sumofadjthreadgroups+1" | bc)
     fi
   done
 
   # Now we sum up the thread counts and print a total
   for n in ${!new_threadcounts[@]} ; do
-  	sumofadjthreadgroups=$(echo "$sumofadjthreadgroups+${new_threadcounts[$n]}" | bc)
+    sumofadjthreadgroups=$(echo "$sumofadjthreadgroups+${new_threadcounts[$n]}" | bc)
   done
 
   echo " - There are $sumofthreadgroups threads in the test plan, this test is set to execute $percent percent of these, so will run using $sumofadjthreadgroups threads"
 
   # now we loop through each thread group, editing a separate file for each host each iteration (nested loop)
   for i in ${!threadgroup_threadcounts[@]} ; do
-  	# using modulo we distribute the threads over all hosts, building the array 'threads'
-  	# taking 10(threads)/3(hosts) as an example you would expect two hosts to be given 3 threads and one to be given 4.
-  	for (( x=1; x<=${new_threadcounts[$i]}; x++ )); do
-  		: $(( threads[$(( $x % ${#hosts[@]} ))]++ ))
-  	done
+    # using modulo we distribute the threads over all hosts, building the array 'threads'
+    # taking 10(threads)/3(hosts) as an example you would expect two hosts to be given 3 threads and one to be given 4.
+    for (( x=1; x<=${new_threadcounts[$i]}; x++ )); do
+      : $(( threads[$(( $x % ${#hosts[@]} ))]++ ))
+    done
 
-  	# here we loop through every host, editing the jmx file and using a temp file to carry the changes over
-  	for y in "${!hosts[@]}" ; do
-  		# we're already in a loop for each thread group but awk will parse the entire file each time it is called so we need to
-  		# use an index to know when to make the edit
-  		# when c (awk's index) matches i (the main for loop's index) then a substitution is made
+    # here we loop through every host, editing the jmx file and using a temp file to carry the changes over
+    for y in "${!hosts[@]}" ; do
+      # we're already in a loop for each thread group but awk will parse the entire file each time it is called so we need to
+      # use an index to know when to make the edit
+      # when c (awk's index) matches i (the main for loop's index) then a substitution is made
 
-  		# first check for any null values (caused by lots of hosts and not many threads)
-  		threadgroupschanged=0
-  		if [ -z "${threads[$y]}" ] ; then
-  			threads[$y]=1
-  			threadgroupschanged=$(echo "$threadgroupschanged+1" | bc)
-  		fi
-  		if [ "$threadgroupschanged" == "1" ] ; then
-  			echo " - $threadgroupschanged thread groups were allocated zero threads, this happens because the total allocated threads to a group is less than the $instance_count instances being used."
-  			echo "   To get around this the script gave each group an extra thread, a better solution is to revise the test configuration to use more threads / less instances"
-  		fi
-  		findstr="threads\">"${orig_threadcounts[$i]}
-  		replacestr="threads\">"${threads[$y]}
-  		awk -v "findthis=$findstr" -v "replacewiththis=$replacestr" \
-  			'BEGIN{c=0} \
-  			/ThreadGroup\.num_threads\">[^<]*</ \
-  			{if(c=='"$i"'){sub(findthis,replacewiththis)};c++}1' \
-  			"$working_jmx"_"$y" > "$temp_jmx"_"$y"
+      # first check for any null values (caused by lots of hosts and not many threads)
+      threadgroupschanged=0
+      if [ -z "${threads[$y]}" ] ; then
+        threads[$y]=1
+        threadgroupschanged=$(echo "$threadgroupschanged+1" | bc)
+      fi
+      if [ "$threadgroupschanged" == "1" ] ; then
+        echo " - $threadgroupschanged thread groups were allocated zero threads, this happens because the total allocated threads to a group is less than the $instance_count instances being used."
+        echo "   To get around this the script gave each group an extra thread, a better solution is to revise the test configuration to use more threads / less instances"
+      fi
+      findstr="threads\">"${orig_threadcounts[$i]}
+      replacestr="threads\">"${threads[$y]}
+      awk -v "findthis=$findstr" -v "replacewiththis=$replacestr" \
+        'BEGIN{c=0} \
+        /ThreadGroup\.num_threads\">[^<]*</ \
+        {if(c=='"$i"'){sub(findthis,replacewiththis)};c++}1' \
+        "$working_jmx"_"$y" > "$temp_jmx"_"$y"
 
-  		# using awk requires the use of a temp file to save the results of the command, update the working file with this file
-  		rm "$working_jmx"_"$y"
-  		mv "$temp_jmx"_"$y" "$working_jmx"_"$y"
-  	done
+      # using awk requires the use of a temp file to save the results of the command, update the working file with this file
+      rm "$working_jmx"_"$y"
+      mv "$temp_jmx"_"$y" "$working_jmx"_"$y"
+    done
 
-  	# write update to screen - removed 23/04/2012
-  	# echo "...$i) ${threadgroup_names[$i]} has ${threadgroup_threadcounts[$i]} thread(s), to be distributed over $instance_count instance(s)"
+    # write update to screen - removed 23/04/2012
+    # echo "...$i) ${threadgroup_names[$i]} has ${threadgroup_threadcounts[$i]} thread(s), to be distributed over $instance_count instance(s)"
 
-  	unset threads
+    unset threads
   done
   echo
   echo "thread counts updated"
@@ -628,7 +651,7 @@ function runsetup() {
 
   # scp data dir
   if [ "$setup" = "TRUE" ] ; then
-  	if [ -r $project_home/data ] ; then # don't try to upload this optional dir if it is not present
+    if [ -r $project_home/data ] ; then # don't try to upload this optional dir if it is not present
       echo -n "data dir.."
       for host in ${hosts[@]} ; do
           (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
@@ -680,7 +703,7 @@ function runsetup() {
     fi
 
     # scp any project specific custom jar files
-	    if [ -r $project_home/plugins ] ; then # don't try to upload this optional dir if it is not present
+      if [ -r $project_home/plugins ] ; then # don't try to upload this optional dir if it is not present
       echo -n "project specific jar file(s)..."
       for host in ${hosts[@]} ; do
           (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
@@ -720,10 +743,10 @@ function runtest() {
   # to be certain, we read the value in here and adjust the wait to match (this prevents lots of duplicates being written to the screen)
   sleep_interval=$(awk 'BEGIN { FS = "\=" } ; /summariser.interval/ {print $2}' $LOCAL_HOME/jmeter.properties)
   runningtotal_seconds=$(echo "$RUNNINGTOTAL_INTERVAL * $sleep_interval" | bc)
-	# $epoch is used when importing to mysql (if enabled) because we want unix timestamps, not datetime, as this works better when graphing.
-	epoch_seconds=$(date +%s)
-	epoch_milliseconds=$(echo "$epoch_seconds* 1000" | bc) # milliseconds since Mick Jagger became famous
-	start_date=$(date) # warning, epoch and start_date do not (absolutely) equal each other!
+  # $epoch is used when importing to mysql (if enabled) because we want unix timestamps, not datetime, as this works better when graphing.
+  epoch_seconds=$(date +%s)
+  epoch_milliseconds=$(echo "$epoch_seconds* 1000" | bc) # milliseconds since Mick Jagger became famous
+  start_date=$(date) # warning, epoch and start_date do not (absolutely) equal each other!
 
   echo "JMeter started at $start_date"
   echo "===================================================================== START OF JMETER-EC2 TEST ================================================================================"
@@ -848,8 +871,8 @@ function runtest() {
 }
 
 function runcleanup() {
-	# Turn off the CTRL-C trap now that we are already in the runcleanup function
-	trap - INT
+  # Turn off the CTRL-C trap now that we are already in the runcleanup function
+  trap - INT
 
   if [ "$teststarted" -eq 1 ] ; then
     # display final results
@@ -904,20 +927,20 @@ function runcleanup() {
 
   # terminate any running instances created
   if [ -z "$REMOTE_HOSTS" ]; then
-  	if [ "$terminate" = "TRUE" ] ; then
+    if [ "$terminate" = "TRUE" ] ; then
       echo
       echo
       echo "terminating instance(s)..."
       # We use attempted_instanceids here to make sure that there are no orphan instances left lying around
-			aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
-				--region $REGION \
-				--output text \
-				--query 'TerminatingInstances[].InstanceId'
+      aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
+        --region $REGION \
+        --output text \
+        --query 'TerminatingInstances[].InstanceId'
       echo
-  	fi
+    fi
   fi
 
-	# Tidy up
+  # Tidy up
   if [ -e "$project_home/$project-$DATETIME-grouped.jtl" ] ; then rm $project_home/$project-$DATETIME-grouped.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-sorted.jtl" ] ; then rm $project_home/$project-$DATETIME-sorted.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-noblanks.jtl" ] ; then rm $project_home/$project-$DATETIME-noblanks.jtl ; fi
@@ -981,8 +1004,8 @@ progressBar() {
 }
 
 function control_c(){
-	# Turn off the CTRL-C trap now that it has been invoked once already
-	trap - INT
+  # Turn off the CTRL-C trap now that it has been invoked once already
+  trap - INT
 
   if [ "$teststarted" -eq 1 ] ; then
     # Stop the running test on each host
