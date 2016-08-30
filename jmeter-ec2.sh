@@ -27,13 +27,13 @@ rm $WORKSPACE/jmeter
 cd $WORKSPACE/${jmeter%*.zip}
 
 # Script Configuration
-AMI_ID="ami-c22c4fd5"
-INSTANCE_SECURITYGROUP_IDS="sg-8e2bc8e9"
+AMI_ID="ami-6ff99a78"
+INSTANCE_SECURITYGROUP_IDS="sg-7d2ac91a"
 AMAZON_KEYPAIR_NAME="jmeter"
 USER="ubuntu"
 REGION="us-east-1"
 JMETER_VERSION="apache-jmeter-2.13"
-SUBNET_ID="subnet-d32187a4"
+SUBNET_ID="subnet-711e4206"
 REMOTE_PORT="22"
 RUNNINGTOTAL_INTERVAL="3"
 PEM_PATH="/var/lib/jenkins"
@@ -191,7 +191,6 @@ function runsetup() {
     # create the instance(s) and capture the instance id(s)
     if [ -z "$price" ] ; then
       echo -n "Requesting $instance_count instance(s)..."
-      echo "aws ec2 run-instances --key-name $AMAZON_KEYPAIR_NAME --instance-type $INSTANCE_TYPE --security-group-ids ${INSTANCE_SECURITYGROUP_IDS} --count 1:$instance_count $vpcsettings --image-id $AMI_ID --region $REGION --output text --query 'Instances[].InstanceId'"
       attempted_instanceids=(`aws ec2 run-instances \
                   --key-name "$AMAZON_KEYPAIR_NAME" \
                   --instance-type "$INSTANCE_TYPE" \
@@ -283,6 +282,9 @@ function runsetup() {
         --query 'Reservations[].Instances[].InstanceId'`)
     fi
 
+    echo "Saving instanceIds to file . . . "
+    printf "%s " "${attempted_instanceids[@]}" > ${WORKSPACE}/${BUILD_NUMBER}_instanceIds.txt
+
     # check to see if Amazon returned the desired number of instances as a limit is placed restricting this and we need to handle the case where
     # less than the expected number is given wthout failing the test.
     countof_instanceids=${#attempted_instanceids[@]}
@@ -302,7 +304,7 @@ function runsetup() {
 
     # wait for each instance to be fully operational
     status_check_count=0
-    status_check_limit=270
+    status_check_limit=540
     status_check_limit=`echo "$status_check_limit + $countof_instanceids" | bc` # increase wait time based on instance count
     echo "waiting for instance status checks to pass (this can take several minutes)..."
     count_passed=0
@@ -731,6 +733,8 @@ function runsetup() {
       $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
       -t $REMOTE_HOME/execute.jmx \
       -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
+      -Jjmeter.save.saveservice.print_field_names=false \
+      -Jjmeter.save.saveservice.thread_counts=false \
       >> $project_home/$DATETIME-${hosts[$counter]}-jmeter.out ) &
   done
   echo
@@ -752,7 +756,7 @@ function runtest() {
   echo "===================================================================== START OF JMETER-EC2 TEST ================================================================================"
   echo "> [updates: every $sleep_interval seconds | running total: every $runningtotal_seconds seconds]"
   echo ">"
-  echo "> waiting for the test to start...to stop the test while it is running, press CTRL-C"
+  echo "> waiting for the test to start..."
   teststarted=1
   # TO DO: Are thse required?
   count_total=0
@@ -893,6 +897,13 @@ function runcleanup() {
                                    -P $REMOTE_PORT \
                                    $USER@${hosts[$i]}:$REMOTE_HOME/$project-*.jtl \
                                    $project_home/
+      # Save the CSV headers and remove from each hosts results file
+      #has_csv_headers=$(grep -c "^\s*timeStamp"  $project_home/$project-$DATETIME-$i.jtl)
+      #if [ $has_csv_headers -gt "0" ] ; then
+      #  csv_headers="$(head -1 $project_home/$project-$DATETIME-$i.jtl),Hostname"
+      #  echo "$(tail -n +2 $project_home/$project-$DATETIME-$i.jtl)" > $project_home/$project-$DATETIME-$i.jtl
+      #fi
+      
       # Append the hostname
       sed "s/$/,"${hosts[$i]}"/" $project_home/$project-$DATETIME-$i.jtl >> $project_home/$project-$DATETIME-$i-appended.jtl
       rm $project_home/$project-$DATETIME-$i.jtl
@@ -926,27 +937,30 @@ function runcleanup() {
   fi
 
   # terminate any running instances created
-  if [ -z "$REMOTE_HOSTS" ]; then
-    if [ "$terminate" = "TRUE" ] ; then
-      echo
-      echo
-      echo "terminating instance(s)..."
-      # We use attempted_instanceids here to make sure that there are no orphan instances left lying around
-      aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
-        --region $REGION \
-        --output text \
-        --query 'TerminatingInstances[].InstanceId'
-      echo
-    fi
-  fi
+#  if [ -z "$REMOTE_HOSTS" ]; then
+#    if [ "$terminate" = "TRUE" ] ; then
+#      echo
+#      echo
+#      echo "terminating instance(s)..."
+#      # We use attempted_instanceids here to make sure that there are no orphan instances left lying around
+#      aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
+#        --region $REGION \
+#        --output text \
+#        --query 'TerminatingInstances[].InstanceId'
+#      echo
+#    fi
+#  fi
 
   # Tidy up
   if [ -e "$project_home/$project-$DATETIME-grouped.jtl" ] ; then rm $project_home/$project-$DATETIME-grouped.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-sorted.jtl" ] ; then rm $project_home/$project-$DATETIME-sorted.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-noblanks.jtl" ] ; then rm $project_home/$project-$DATETIME-noblanks.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-complete.jtl" ] ; then
+    #if [ ! -z "$has_csv_headers" ] ; then
+    #  echo -e "$csv_headers\n$(cat $project_home/$project-$DATETIME-complete.jtl)" > $project_home/$project-$DATETIME-complete.jtl
+    #fi
     mkdir -p $project_home/results/
-    mv $project_home/$project-$DATETIME-complete.jtl $project_home/results/
+    mv $project_home/$project-$DATETIME-complete.jtl $project_home/results/$project-complete-${BUILD_NUMBER}.jtl
   fi
 
   # tidy up working files
@@ -960,7 +974,7 @@ function runcleanup() {
   echo "                  jmeter-ec2 Automation Script - COMPLETE"
   echo
   if [ "$teststarted" -eq 1 ] ; then
-    echo "   Test Results: $project_home/results/$project-$DATETIME-complete.jtl"
+    echo "   Test Results: $project_home/results/$project-complete-${BUILD_NUMBER}.jtl"
   fi
   echo "   -------------------------------------------------------------------------------------"
   echo

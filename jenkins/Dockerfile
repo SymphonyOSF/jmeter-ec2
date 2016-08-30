@@ -2,6 +2,7 @@ FROM jenkins:2.7.2
 RUN /usr/local/bin/install-plugins.sh managed-scripts
 RUN /usr/local/bin/install-plugins.sh config-file-provider
 RUN /usr/local/bin/install-plugins.sh performance
+RUN /usr/local/bin/install-plugins.sh postbuildscript
 USER root
 COPY jmeter.pem /var/lib/jenkins/jmeter.pem
 ENV AWS_DEFAULT_REGION=us-east-1
