@@ -735,6 +735,8 @@ function runsetup() {
       -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
       -Jjmeter.save.saveservice.print_field_names=false \
       -Jjmeter.save.saveservice.thread_counts=false \
+      -Jjmeter.save.saveservice.url=true \
+      -Jsummariser.out=true \
       >> $project_home/$DATETIME-${hosts[$counter]}-jmeter.out ) &
   done
   echo
@@ -897,12 +899,6 @@ function runcleanup() {
                                    -P $REMOTE_PORT \
                                    $USER@${hosts[$i]}:$REMOTE_HOME/$project-*.jtl \
                                    $project_home/
-      # Save the CSV headers and remove from each hosts results file
-      #has_csv_headers=$(grep -c "^\s*timeStamp"  $project_home/$project-$DATETIME-$i.jtl)
-      #if [ $has_csv_headers -gt "0" ] ; then
-      #  csv_headers="$(head -1 $project_home/$project-$DATETIME-$i.jtl),Hostname"
-      #  echo "$(tail -n +2 $project_home/$project-$DATETIME-$i.jtl)" > $project_home/$project-$DATETIME-$i.jtl
-      #fi
       
       # Append the hostname
       sed "s/$/,"${hosts[$i]}"/" $project_home/$project-$DATETIME-$i.jtl >> $project_home/$project-$DATETIME-$i-appended.jtl
@@ -936,31 +932,13 @@ function runcleanup() {
     fi
   fi
 
-  # terminate any running instances created
-#  if [ -z "$REMOTE_HOSTS" ]; then
-#    if [ "$terminate" = "TRUE" ] ; then
-#      echo
-#      echo
-#      echo "terminating instance(s)..."
-#      # We use attempted_instanceids here to make sure that there are no orphan instances left lying around
-#      aws ec2 terminate-instances --instance-ids ${attempted_instanceids[@]} \
-#        --region $REGION \
-#        --output text \
-#        --query 'TerminatingInstances[].InstanceId'
-#      echo
-#    fi
-#  fi
-
   # Tidy up
   if [ -e "$project_home/$project-$DATETIME-grouped.jtl" ] ; then rm $project_home/$project-$DATETIME-grouped.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-sorted.jtl" ] ; then rm $project_home/$project-$DATETIME-sorted.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-noblanks.jtl" ] ; then rm $project_home/$project-$DATETIME-noblanks.jtl ; fi
   if [ -e "$project_home/$project-$DATETIME-complete.jtl" ] ; then
-    #if [ ! -z "$has_csv_headers" ] ; then
-    #  echo -e "$csv_headers\n$(cat $project_home/$project-$DATETIME-complete.jtl)" > $project_home/$project-$DATETIME-complete.jtl
-    #fi
     mkdir -p $project_home/results/
-    mv $project_home/$project-$DATETIME-complete.jtl $project_home/results/$project-complete-${BUILD_NUMBER}.jtl
+    mv $project_home/$project-$DATETIME-complete.jtl $project_home/results/$project-complete.jtl
   fi
 
   # tidy up working files
@@ -974,72 +952,25 @@ function runcleanup() {
   echo "                  jmeter-ec2 Automation Script - COMPLETE"
   echo
   if [ "$teststarted" -eq 1 ] ; then
-    echo "   Test Results: $project_home/results/$project-complete-${BUILD_NUMBER}.jtl"
+    echo "   Test Results: $project_home/results/$project-complete.jtl"
   fi
   echo "   -------------------------------------------------------------------------------------"
   echo
 }
 
 
-progressBarWidth=50
-spinnerIndex=1
-sp="/-\|"
-
 # Function to draw progress bar
 progressBar() {
   taskCount=$1
   tasksDone=$2
   progressDone=$3
-  # Calculate number of fill/empty slots in the bar
-  progress=$(echo "$progressBarWidth/$taskCount*$tasksDone" | bc -l)
-  fill=$(printf "%.0f\n" $progress)
-  if [ $fill -gt $progressBarWidth ]; then
-    fill=$progressBarWidth
-  fi
-  empty=$(($fill-$progressBarWidth))
-
-  # Percentage Calculation
-  progressPercent=$(echo "100/$taskCount*$tasksDone" | bc -l)
-  progressPercent=$(printf "%0.2f\n" $progressPercent)
-  if [ $(echo "$progressPercent>100" | bc) -gt 0 ]; then
-    progressPercent="100.00"
-  fi
 
   # Output to screen
-  printf "\r["
-  printf "%${fill}s" '' | tr ' ' \#
-  printf "%${empty}s" '' | tr ' ' " "
-  printf "] $progressPercent%% - ($tasksDone of $taskCount) "
   if [ $progressDone ] ; then
-    printf " - Done."
-  else
-    printf " \b${sp:spinnerIndex++%${#sp}:1} "
+    printf "($tasksDone of $taskCount) - DONE"
   fi
 }
 
-function control_c(){
-  # Turn off the CTRL-C trap now that it has been invoked once already
-  trap - INT
-
-  if [ "$teststarted" -eq 1 ] ; then
-    # Stop the running test on each host
-    echo
-    echo "> Stopping test..."
-    for f in ${!hosts[@]} ; do
-        ( ssh -nq -o StrictHostKeyChecking=no \
-        -i "$PEM_PATH/$PEM_FILE" $USER@${hosts[$f]} -p $REMOTE_PORT \
-        $REMOTE_HOME/$JMETER_VERSION/bin/stoptest.sh ) &
-    done
-    wait
-    echo ">"
-  fi
-
-  runcleanup
-  exit
-}
-
-# trap keyboard interrupt (control-c)
-trap control_c SIGINT
 
 check_prereqs
 runsetup
