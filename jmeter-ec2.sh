@@ -21,10 +21,18 @@
 # along with JMeter-ec2.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-echo "Extracting $jmeter . . . "
-unzip -o $WORKSPACE/jmeter
-rm $WORKSPACE/jmeter
-cd $WORKSPACE/${jmeter%*.zip}
+if [ ! -z "$jmeter" ] ; then # Not Null - then zip file was provided
+  echo "Extracting $jmeter . . . "
+  unzip -o $WORKSPACE/jmeter
+  rm $WORKSPACE/jmeter
+  cd $WORKSPACE/${jmeter%*.zip}
+else
+  project=${GIT_URL##*/}
+  project=${project/.git/}
+  cd $WORKSPACE/${project}
+  pwd
+fi
+
 
 # Script Configuration
 AMI_ID="ami-6ff99a78"
@@ -333,7 +341,7 @@ function runsetup() {
       hosts=(`aws ec2 describe-instances --instance-ids ${attempted_instanceids[@]} \
             --region $REGION \
             --output text \
-            --query 'Reservations[].Instances[].PublicIpAddress'`)
+            --query 'Reservations[].Instances[].PublicDnsName'`)
 
       # echo "all hosts ready"
     else # Amazon probably failed to start a host [*** NOTE this is fairly common ***] so show a msg - TO DO. Could try to replace it with a new one?
@@ -349,7 +357,7 @@ function runsetup() {
       hosts=(`aws ec2 describe-instances --instance-ids ${healthy_instanceids[@]} \
             --region $REGION \
             --output text \
-            --query 'Reservations[].Instances[].PublicIpAddress'`)
+            --query 'Reservations[].Instances[].PublicDnsName'`)
 
       if [ "${#healthy_instanceids[@]}" -eq 0 ] ; then
         countof_instanceids=0

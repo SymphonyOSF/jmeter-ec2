@@ -3,6 +3,8 @@ RUN /usr/local/bin/install-plugins.sh managed-scripts
 RUN /usr/local/bin/install-plugins.sh config-file-provider
 RUN /usr/local/bin/install-plugins.sh performance
 RUN /usr/local/bin/install-plugins.sh postbuildscript
+RUN /usr/local/bin/install-plugins.sh rebuild
+RUN /usr/local/bin/install-plugins.sh git
 USER root
 COPY jmeter.pem /var/lib/jenkins/jmeter.pem
 ENV AWS_DEFAULT_REGION=us-east-1
