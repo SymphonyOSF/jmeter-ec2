@@ -34,7 +34,7 @@ else
 fi
 
 
-# Script Configuration
+# Script Configuration vpc-6e0f020b
 AMI_ID="ami-6ff99a78"
 INSTANCE_SECURITYGROUP_IDS="sg-7d2ac91a"
 AMAZON_KEYPAIR_NAME="jmeter"
@@ -713,13 +713,26 @@ function runsetup() {
     fi
 
     # scp any project specific custom jar files
-      if [ -r $project_home/plugins ] ; then # don't try to upload this optional dir if it is not present
+    if [ -r $project_home/plugins ] ; then # don't try to upload this optional dir if it is not present
       echo -n "project specific jar file(s)..."
       for host in ${hosts[@]} ; do
           (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                                         -i "$PEM_PATH/$PEM_FILE" -P $REMOTE_PORT \
                                         $project_home/plugins/*.jar \
                                         $USER@$host:$REMOTE_HOME/$JMETER_VERSION/lib/ext/) &
+      done
+      wait
+      echo -n "done...."
+    fi
+
+    # scp any junit jar files
+    if [ -r $project_home/junit ] ; then # don't try to upload this optional dir if it is not present
+      echo -n "project specific junit jar file(s)..."
+      for host in ${hosts[@]} ; do
+          (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+                                        -i "$PEM_PATH/$PEM_FILE" -P $REMOTE_PORT \
+                                        $project_home/junit/*.jar \
+                                        $USER@$host:$REMOTE_HOME/$JMETER_VERSION/lib/junit/) &
       done
       wait
       echo -n "done...."

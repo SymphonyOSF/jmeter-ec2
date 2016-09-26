@@ -1,0 +1,10 @@
+sudo -i
+passwd root
+passwd -u root
+Follow: https://docs.docker.com/engine/installation/linux/ubuntulinux/
+git clone https://github.com/marturi/jmeter-ec2.git
+cd jmeter-ec2/jenkins
+docker build -t jenkins_jmeter .
+cd ..
+sudo chown 1000 $PWD/jenkins
+docker run -d -p 80:8080 -v $PWD/jenkins:/var/jenkins_home -t jenkins_jmeter
