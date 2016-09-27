@@ -33,14 +33,13 @@ else
   pwd
 fi
 
-
 # Script Configuration vpc-6e0f020b
-AMI_ID="ami-6ff99a78"
+AMI_ID="ami-5d37704a"  #"ami-6ff99a78"
 INSTANCE_SECURITYGROUP_IDS="sg-7d2ac91a"
 AMAZON_KEYPAIR_NAME="jmeter"
 USER="ubuntu"
 REGION="us-east-1"
-JMETER_VERSION="apache-jmeter-2.13"
+JMETER_VERSION="apache-jmeter-3.0"
 SUBNET_ID="subnet-711e4206"
 REMOTE_PORT="22"
 RUNNINGTOTAL_INTERVAL="3"
@@ -758,6 +757,7 @@ function runsetup() {
       -Jjmeter.save.saveservice.thread_counts=false \
       -Jjmeter.save.saveservice.url=true \
       -Jsummariser.out=true \
+      $1 $2
       >> $project_home/$DATETIME-${hosts[$counter]}-jmeter.out ) &
   done
   echo

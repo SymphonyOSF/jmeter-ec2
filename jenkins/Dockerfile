@@ -8,8 +8,8 @@ RUN /usr/local/bin/install-plugins.sh git
 USER root
 COPY jmeter.pem /var/lib/jenkins/jmeter.pem
 ENV AWS_DEFAULT_REGION=us-east-1
-ENV AWS_ACCESS_KEY_ID=AKIAJBQGRBBFC2DAFY2A
-ENV AWS_SECRET_ACCESS_KEY=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
+ENV AWS_ACCESS_KEY_ID=AKIAIYDE5RURRO6XJ2UA
+ENV AWS_SECRET_ACCESS_KEY=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
 COPY verify.sh /tmp/verify.sh
 COPY jmeter.properties /tmp/jmeter.properties
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
