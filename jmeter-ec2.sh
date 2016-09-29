@@ -686,12 +686,12 @@ function runsetup() {
     fi
 
     # scp jmeter execution file
-    if [ -r $LOCAL_HOME/jmeter ] ; then # don't try to upload this optional file if it is not present
+    if [ -r $project_home/jmeter ] ; then # don't try to upload this optional file if it is not present
       echo -n "jmeter execution file..."
       for host in ${hosts[@]} ; do
           (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                                         -i "$PEM_PATH/$PEM_FILE" -P $REMOTE_PORT \
-                                        $LOCAL_HOME/jmeter $LOCAL_HOME/jmeter \
+                                        $project_home/jmeter \
                                         $USER@$host:$REMOTE_HOME/$JMETER_VERSION/bin/) &
       done
       wait
@@ -747,6 +747,7 @@ function runsetup() {
     echo $host
   done
   for counter in ${!hosts[@]} ; do
+      #echo "ssh -nq -o StrictHostKeyChecking=no -p $REMOTE_PORT -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n -t $REMOTE_HOME/execute.jmx -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl -Jjmeter.save.saveservice.print_field_names=false -Jjmeter.save.saveservice.thread_counts=false -Jjmeter.save.saveservice.url=true -Jsummariser.out=true $1 $2"
       ( ssh -nq -o StrictHostKeyChecking=no \
       -p $REMOTE_PORT \
       -i "$PEM_PATH/$PEM_FILE" $USER@${hosts[$counter]} \
@@ -757,7 +758,6 @@ function runsetup() {
       -Jjmeter.save.saveservice.thread_counts=false \
       -Jjmeter.save.saveservice.url=true \
       -Jsummariser.out=true \
-      $1 $2
       >> $project_home/$DATETIME-${hosts[$counter]}-jmeter.out ) &
   done
   echo

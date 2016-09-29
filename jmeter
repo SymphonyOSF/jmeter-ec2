@@ -38,7 +38,7 @@
 #
 # - Per-work-session objects (test plans, GUIs,...).
 #   Life length: for the life of the JVM.
-
+CRYPTO="-Djava.library.path=/Users/matthew.arturi/dev/Projects/SBE/commons/crypto/src/main/resources/cryptolibs"
 # This is the base heap size -- you may increase or decrease it to fit your
 # system's memory availablity:
 HEAP="-Xms2048m -Xmx2048m"
@@ -46,7 +46,7 @@ HEAP="-Xms2048m -Xmx2048m"
 # There's an awful lot of per-sample objects allocated during test run, so we
 # need a large eden to avoid too frequent scavenges -- you'll need to tune this
 # down proportionally if you reduce the HEAP values above:
-NEW="-XX:NewSize=256m -XX:MaxNewSize=256m"
+NEW="-XX:NewSize=256m -XX:MaxNewSize=1024m"
 
 # This ratio and target have been proven OK in tests with a specially high
 # amount of per-sample objects (the HtmlParserHTMLParser tests):
@@ -85,9 +85,8 @@ DUMP="-XX:+HeapDumpOnOutOfMemoryError"
 
 SERVER="-server"
 
-ARGS="$SERVER $DUMP $HEAP $NEW $SURVIVOR $TENURING $EVACUATION $RMIGC $PERM"
+ARGS="$SERVER $DUMP $HEAP $NEW $SURVIVOR $TENURING $EVACUATION $RMIGC $PERM $CRYPTO"
 
 # Added to counter ELB DNS caching - see: http://wiki.apache.org/jmeter/JMeterAndAmazon
 JVM_ARGS="-Dsun.net.inetaddr.ttl=0"
-
 java $ARGS $JVM_ARGS -jar `dirname $0`/ApacheJMeter.jar "$@"

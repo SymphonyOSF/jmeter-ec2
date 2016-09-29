@@ -7,6 +7,8 @@ RUN /usr/local/bin/install-plugins.sh rebuild
 RUN /usr/local/bin/install-plugins.sh git
 USER root
 COPY jmeter.pem /var/lib/jenkins/jmeter.pem
+COPY crypto.zip /var/lib/sym-crypto/crypto.zip
+RUN cd /var/lib/sym-crypto && unzip crypto.zip
 ENV AWS_DEFAULT_REGION=us-east-1
 ENV AWS_ACCESS_KEY_ID=AKIAIYDE5RURRO6XJ2UA
 ENV AWS_SECRET_ACCESS_KEY=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
