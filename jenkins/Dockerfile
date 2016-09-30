@@ -6,8 +6,6 @@ RUN /usr/local/bin/install-plugins.sh postbuildscript
 RUN /usr/local/bin/install-plugins.sh rebuild
 RUN /usr/local/bin/install-plugins.sh git
 USER root
-COPY crypto.zip /var/lib/sym-crypto/crypto.zip
-RUN cd /var/lib/sym-crypto && unzip crypto.zip
 ENV AWS_DEFAULT_REGION=us-east-1
 COPY verify.sh /tmp/verify.sh
 COPY jmeter.properties /tmp/jmeter.properties

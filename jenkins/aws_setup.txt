@@ -8,5 +8,5 @@ docker build -t jenkins_jmeter .
 cd ..
 sudo chown 1000 $PWD/jenkins
 docker run -d -p 80:8080 -v $PWD/jenkins:/var/jenkins_home -t jenkins_jmeter
-
-
+docker exec -it [container] /bin/bash
+configure aws-cli (AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY)
