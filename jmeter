@@ -43,6 +43,11 @@ CRYPTO="-Djava.library.path=/var/lib/sym-crypto"
 # system's memory availablity:
 HEAP="-Xms2048m -Xmx2048m"
 
+ADDL_ARGS="REPLACE_ME"
+if [ "$ADDL_ARGS" = "REPLACE_ME" ] ; then
+	ADDL_ARGS=""
+fi
+
 # There's an awful lot of per-sample objects allocated during test run, so we
 # need a large eden to avoid too frequent scavenges -- you'll need to tune this
 # down proportionally if you reduce the HEAP values above:

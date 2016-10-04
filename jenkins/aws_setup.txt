@@ -10,3 +10,6 @@ sudo chown 1000 $PWD/jenkins
 docker run -d -p 80:8080 -v $PWD/jenkins:/var/jenkins_home -t jenkins_jmeter
 docker exec -it [container] /bin/bash
 configure aws-cli (AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY)
+
+ssh -i ~/Downloads/jmeter.pem ubuntu@ec2-75-101-244-120.compute-1.amazonaws.com:/home/ubuntu/jmeter-ec2/jenkins/
+sudo -i
