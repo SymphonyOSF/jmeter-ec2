@@ -38,7 +38,7 @@
 #
 # - Per-work-session objects (test plans, GUIs,...).
 #   Life length: for the life of the JVM.
-CRYPTO="-Djava.library.path=/Users/matthew.arturi/dev/Projects/SBE/commons/crypto/src/main/resources/cryptolibs"
+CRYPTO="-Djava.library.path=/var/lib/sym-crypto"
 # This is the base heap size -- you may increase or decrease it to fit your
 # system's memory availablity:
 HEAP="-Xms2048m -Xmx2048m"

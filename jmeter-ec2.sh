@@ -751,7 +751,7 @@ function runsetup() {
       ( ssh -nq -o StrictHostKeyChecking=no \
       -p $REMOTE_PORT \
       -i "$PEM_PATH/$PEM_FILE" $USER@${hosts[$counter]} \
-      $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
+      $REMOTE_HOME/$JMETER_VERSION/bin/jmeter -n \
       -t $REMOTE_HOME/execute.jmx \
       -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
       -Jjmeter.save.saveservice.print_field_names=false \
