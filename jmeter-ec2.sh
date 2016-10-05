@@ -33,8 +33,8 @@ else
   pwd
 fi
 
-if [ -f /jmeter ]; then
-  sed -i.bak 's/REPLACE_ME/$TEST_ARGS/g' jmeter
+if [ -f ./jmeter ]; then
+  sed -i.bak "s/REPLACE_ME/$TEST_ARGS/g" jmeter
 fi
 
 # Script Configuration vpc-6e0f020b
