@@ -778,8 +778,9 @@ function runtest() {
   epoch_seconds=$(date +%s)
   epoch_milliseconds=$(echo "$epoch_seconds* 1000" | bc) # milliseconds since Mick Jagger became famous
   start_date=$(date) # warning, epoch and start_date do not (absolutely) equal each other!
+  start_date_epoch=$(date +%s)
 
-  echo "JMeter started at $start_date"
+  echo "JMeter started at $start_date_epoch"
   echo "===================================================================== START OF JMETER-EC2 TEST ================================================================================"
   echo "> [updates: every $sleep_interval seconds | running total: every $runningtotal_seconds seconds]"
   echo ">"
@@ -905,6 +906,8 @@ function runcleanup() {
   # Turn off the CTRL-C trap now that we are already in the runcleanup function
   trap - INT
 
+  end_date_epoch=$(date +%s)
+
   if [ "$teststarted" -eq 1 ] ; then
     # display final results
     echo ">"
@@ -913,7 +916,7 @@ function runcleanup() {
     echo ">"
     echo "===================================================================== END OF JMETER-EC2 TEST =================================================================================="
     echo
-    echo
+    echo "JMeter ended at $end_date_epoch"
 
     # download the results
     for i in ${!hosts[@]} ; do
