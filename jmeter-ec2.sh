@@ -38,7 +38,7 @@ if [ -f ./jmeter ]; then
 fi
 
 # Script Configuration vpc-6e0f020b
-AMI_ID="ami-5d37704a"  #"ami-6ff99a78"
+AMI_ID="ami-7bd73d6d"
 INSTANCE_SECURITYGROUP_IDS="sg-7d2ac91a"
 AMAZON_KEYPAIR_NAME="jmeter"
 USER="ubuntu"
